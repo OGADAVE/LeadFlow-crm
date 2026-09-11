@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function belongsToCompany(companyId) {
+      return isSignedIn() && getUserProfile().companyId == companyId;
+    }
+
+    function isAdmin(companyId) {
+      return belongsToCompany(companyId) && getUserProfile().role == 'admin';
+    }
+
+    match /companies/{companyId} {
+      allow read: if belongsToCompany(companyId);
+      allow write: if isAdmin(companyId);
+
+      match /leads/{leadId} {
+        allow read, create, update: if belongsToCompany(companyId);
+        allow delete: if isAdmin(companyId);
+
+        match /timeline/{eventId} {
+          // Written by the client directly for now (drag-and-drop, add-lead
+          // form) — see README for the integrity tradeoff this implies.
+          // Once server-triggered timeline logging is added to the Worker,
+          // this goes back to allow write: if false.
+          allow read, create: if belongsToCompany(companyId);
+          allow update, delete: if false;
+        }
+
+        match /notes/{noteId} {
+          allow read, create: if belongsToCompany(companyId);
+          allow update, delete: if belongsToCompany(companyId) &&
+            request.auth.uid == resource.data.authorUserId;
+        }
+      }
+
+      match /properties/{propertyId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if isAdmin(companyId);
+      }
+
+      match /consultants/{consultantId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if isAdmin(companyId);
+      }
+
+      match /users/{userId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if false; // set only by the Worker (service account), via /api/invite-user and /api/company-signup
+      }
+
+      match /emailTemplates/{templateId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if isAdmin(companyId);
+      }
+
+      match /sequences/{sequenceId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if isAdmin(companyId);
+      }
+
+      match /sequenceEnrollments/{enrollmentId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if false; // Worker only
+      }
+
+      match /whatsappClicks/{clickId} {
+        allow read, create: if belongsToCompany(companyId);
+        allow update, delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if belongsToCompany(companyId);
+        allow update: if belongsToCompany(companyId); // marking as read
+        allow create, delete: if false; // Worker only
+      }
+    }
+
+    match /userProfiles/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false; // set only by the Worker (service account)
+    }
+  }
+}

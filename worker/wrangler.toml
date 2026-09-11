@@ -1,0 +1,13 @@
+name = "leadflow-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Secrets (set via `wrangler secret put <NAME>`, never committed):
+#   FIREBASE_SERVICE_ACCOUNT_JSON  — full JSON key from Firebase Console →
+#                                    Project Settings → Service Accounts →
+#                                    Generate new private key
+#   BREVO_API_KEY                  — from app.brevo.com → SMTP & API → API Keys
+
+# Cron trigger for the daily follow-up scan (added once that feature is built):
+# [triggers]
+# crons = ["0 6 * * *"]  # 06:00 UTC = 07:00 WAT
