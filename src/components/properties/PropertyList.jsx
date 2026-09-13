@@ -14,7 +14,7 @@ export default function PropertyList() {
   return (
     <div>
       <Topbar title="Properties" subtitle={`${properties.length} in the library`} />
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {isAdmin && (
           <div className="mb-6">
             <button

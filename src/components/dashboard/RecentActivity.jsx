@@ -5,6 +5,7 @@ const EVENT_META = {
   lead_created: { label: 'New lead created', icon: Sparkles, color: '#3B82F6' },
   email_sent: { label: 'Email sent', icon: Mail, color: '#22D3EE' },
   email_opened: { label: 'Email opened', icon: Mail, color: '#22C55E' },
+  email_clicked: { label: 'Email link clicked', icon: Mail, color: '#3B82F6' },
   brochure_downloaded: { label: 'Brochure downloaded', icon: Mail, color: '#F59E0B' },
   whatsapp_clicked: { label: 'WhatsApp clicked', icon: MessageCircle, color: '#22C55E' },
   status_changed: { label: 'Lead status updated', icon: ArrowRightLeft, color: '#A855F7' },

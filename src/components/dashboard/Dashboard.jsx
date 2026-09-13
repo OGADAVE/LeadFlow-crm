@@ -29,7 +29,7 @@ export default function Dashboard() {
   const firstName = user?.email?.split('@')[0] || 'there';
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-ink">
           Good day, <span className="brand-text capitalize">{firstName}</span> 👋

@@ -1,5 +1,10 @@
 import { handleCompanySignup } from './routes/companySignup.js';
 import { handleInviteUser } from './routes/inviteUser.js';
+import { handleTriggerSequences } from './routes/triggerSequences.js';
+import { runSequenceSend } from './routes/sendSequenceEmails.js';
+import { handleTrackOpen, handleTrackClick } from './routes/tracking.js';
+import { handleTriggerFollowUpScan } from './routes/triggerFollowUpScan.js';
+import { runDailyFollowUpScan } from './routes/dailyFollowUpScan.js';
 
 // Restrict this to your actual frontend origin(s) once you know them —
 // e.g. ['https://leadflow.ogadaveconcepts.com.ng', 'http://localhost:5173']
@@ -31,6 +36,14 @@ export default {
         response = await handleCompanySignup(request, env);
       } else if (url.pathname === '/api/invite-user' && request.method === 'POST') {
         response = await handleInviteUser(request, env);
+      } else if (url.pathname === '/api/trigger-sequences' && request.method === 'POST') {
+        response = await handleTriggerSequences(request, env);
+      } else if (url.pathname === '/track/open' && request.method === 'GET') {
+        response = await handleTrackOpen(request, env);
+      } else if (url.pathname === '/track/click' && request.method === 'GET') {
+        response = await handleTrackClick(request, env);
+      } else if (url.pathname === '/api/trigger-followup-scan' && request.method === 'POST') {
+        response = await handleTriggerFollowUpScan(request, env);
       } else {
         response = new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
@@ -48,5 +61,17 @@ export default {
     const newHeaders = new Headers(response.headers);
     Object.entries(headers).forEach(([k, v]) => newHeaders.set(k, v));
     return new Response(response.body, { status: response.status, headers: newHeaders });
+  },
+
+  // Cloudflare Cron Trigger — event.cron tells us which of the two schedules
+  // in wrangler.toml fired, so one scheduled() handler can run both jobs.
+  // ctx.waitUntil keeps the Worker alive until the job finishes, since
+  // neither is tied to an HTTP response.
+  async scheduled(event, env, ctx) {
+    if (event.cron === '0 6 * * *') {
+      ctx.waitUntil(runDailyFollowUpScan(env));
+    } else {
+      ctx.waitUntil(runSequenceSend(env));
+    }
   }
 };

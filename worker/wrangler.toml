@@ -2,12 +2,21 @@ name = "leadflow-api"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 
+# Plain (non-secret) variables. Update WORKER_URL to your actual deployed
+# Worker URL after your first `wrangler deploy` — needed so tracking pixel/
+# click links embedded in emails point back to the right place, including
+# from the scheduled() cron handler, which has no request URL of its own.
+[vars]
+WORKER_URL = "https://leadflow-api.leadflow-crm.workers.dev"
+
 # Secrets (set via `wrangler secret put <NAME>`, never committed):
 #   FIREBASE_SERVICE_ACCOUNT_JSON  — full JSON key from Firebase Console →
 #                                    Project Settings → Service Accounts →
 #                                    Generate new private key
 #   BREVO_API_KEY                  — from app.brevo.com → SMTP & API → API Keys
 
-# Cron trigger for the daily follow-up scan (added once that feature is built):
-# [triggers]
-# crons = ["0 6 * * *"]  # 06:00 UTC = 07:00 WAT
+# Runs the sequence-sending job hourly, and the daily follow-up scan once a
+# day at 06:00 UTC (07:00 WAT). Both can also be triggered manually as an
+# admin, via POST /api/trigger-sequences and /api/trigger-followup-scan.
+[triggers]
+crons = ["0 * * * *", "0 6 * * *"]

@@ -33,7 +33,7 @@ export default function ConsultantDashboard() {
   return (
     <div>
       <Topbar title="My Dashboard" subtitle="Your assigned leads and today's priorities" />
-      <div className="p-8 space-y-8">
+      <div className="p-4 sm:p-8 space-y-8">
         {loading ? (
           <p className="text-subtle text-sm">Loading…</p>
         ) : (

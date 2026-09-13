@@ -54,6 +54,160 @@ function fromFirestoreFields(fields) {
 }
 
 /**
+ * Updates only the given fields on an existing document, leaving everything
+ * else untouched — unlike setDoc, which replaces the whole document.
+ */
+export async function patchDoc(env, path, data) {
+  const token = await getGoogleAccessToken(env);
+  const fieldMask = Object.keys(data).map((key) => `updateMask.fieldPaths=${encodeURIComponent(key)}`).join('&');
+  const res = await fetch(`${baseUrl(env)}/${path}?${fieldMask}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ fields: toFirestoreFields(data) })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Firestore patchDoc failed for ${path}: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+/**
+ * Runs a collectionGroup query across ALL companies' sequenceEnrollments for
+ * ones that are due to send (status == active, nextSendAt <= now). Returns
+ * plain objects with companyId, enrollmentId, and the doc's fields — the
+ * caller doesn't need to know anything about Firestore's REST document format.
+ */
+export async function getDueSequenceEnrollments(env, nowDate) {
+  const token = await getGoogleAccessToken(env);
+  const projectId = getProjectId(env);
+
+  const structuredQuery = {
+    from: [{ collectionId: 'sequenceEnrollments', allDescendants: true }],
+    where: {
+      compositeFilter: {
+        op: 'AND',
+        filters: [
+          {
+            fieldFilter: {
+              field: { fieldPath: 'status' },
+              op: 'EQUAL',
+              value: { stringValue: 'active' }
+            }
+          },
+          {
+            fieldFilter: {
+              field: { fieldPath: 'nextSendAt' },
+              op: 'LESS_THAN_OR_EQUAL',
+              value: { timestampValue: nowDate.toISOString() }
+            }
+          }
+        ]
+      }
+    },
+    orderBy: [{ field: { fieldPath: 'nextSendAt' }, direction: 'ASCENDING' }],
+    limit: 200
+  };
+
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ structuredQuery })
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Firestore runQuery failed: ${res.status} ${text}`);
+  }
+
+  const results = await res.json();
+
+  return results
+    .filter((r) => r.document)
+    .map((r) => {
+      // r.document.name looks like:
+      // projects/{proj}/databases/(default)/documents/companies/{companyId}/sequenceEnrollments/{enrollmentId}
+      const parts = r.document.name.split('/');
+      const companyId = parts[parts.indexOf('companies') + 1];
+      const enrollmentId = parts[parts.length - 1];
+      return {
+        companyId,
+        enrollmentId,
+        ...fromFirestoreFields(r.document.fields || {})
+      };
+    });
+}
+
+/**
+ * Runs a collectionGroup query across ALL companies' leads for ones with a
+ * follow-up due (nextFollowUpDate <= now). Deliberately does NOT also filter
+ * status in the query — Firestore only allows one field to have an
+ * inequality filter per query, and status (excluding closed/lost) would be
+ * a second one on top of the date range. The caller filters status after
+ * fetching instead.
+ */
+export async function getDueFollowUps(env, nowDate) {
+  const token = await getGoogleAccessToken(env);
+  const projectId = getProjectId(env);
+
+  const structuredQuery = {
+    from: [{ collectionId: 'leads', allDescendants: true }],
+    where: {
+      fieldFilter: {
+        field: { fieldPath: 'nextFollowUpDate' },
+        op: 'LESS_THAN_OR_EQUAL',
+        value: { timestampValue: nowDate.toISOString() }
+      }
+    },
+    orderBy: [{ field: { fieldPath: 'nextFollowUpDate' }, direction: 'ASCENDING' }],
+    limit: 500
+  };
+
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ structuredQuery })
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Firestore getDueFollowUps query failed: ${res.status} ${text}`);
+  }
+
+  const results = await res.json();
+
+  return results
+    .filter((r) => r.document)
+    .map((r) => {
+      const parts = r.document.name.split('/');
+      const companyId = parts[parts.indexOf('companies') + 1];
+      const leadId = parts[parts.length - 1];
+      return {
+        companyId,
+        leadId,
+        ...fromFirestoreFields(r.document.fields || {})
+      };
+    })
+    .filter((lead) => lead.status !== 'closed' && lead.status !== 'lost');
+}
+
+/**
  * Creates (or overwrites) a document at an exact path, e.g.
  * setDoc(env, 'userProfiles/abc123', { companyId: 'x', role: 'admin' })
  */

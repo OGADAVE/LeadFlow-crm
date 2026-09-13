@@ -5,6 +5,7 @@ import PipelineColumn from './PipelineColumn';
 import { useLeads } from '../../hooks/useLeads';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
+import { createNotification } from '../../lib/notifications';
 
 const STAGES = [
   { key: 'new', label: 'New Lead' },
@@ -47,12 +48,19 @@ export default function PipelineBoard() {
         actorUserId: profile.userId
       }
     );
+
+    const stageLabel = STAGES.find((s) => s.key === newStatus)?.label || newStatus;
+    await createNotification(profile.companyId, {
+      type: 'lead_status_changed',
+      message: `${lead.fullName} moved to ${stageLabel}`,
+      leadId
+    });
   }
 
   return (
     <div>
       <Topbar title="Pipeline" subtitle="Drag a lead to move it through the funnel" />
-      <div className="p-8 overflow-x-auto">
+      <div className="p-4 sm:p-8 overflow-x-auto">
         <DndContext onDragEnd={handleDragEnd}>
           <div className="flex gap-4">
             {STAGES.map((stage) => (

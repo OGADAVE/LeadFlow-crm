@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { createNotification } from '../../lib/notifications';
+import { enrollLeadInMatchingSequences } from '../../lib/enrollment';
 import { useAuth } from '../../context/AuthContext';
 import { useConsultants } from '../../hooks/useConsultants';
 
@@ -53,6 +55,14 @@ export default function LeadForm({ onDone }) {
         actorUserId: profile.userId
       }
     );
+
+    await createNotification(profile.companyId, {
+      type: 'new_lead',
+      message: `New lead: ${form.fullName} via ${form.source}`,
+      leadId: leadRef.id
+    });
+
+    await enrollLeadInMatchingSequences(profile.companyId, leadRef.id);
 
     setSaving(false);
     onDone?.();

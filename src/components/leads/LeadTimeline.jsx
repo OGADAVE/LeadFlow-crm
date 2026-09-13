@@ -7,6 +7,7 @@ const EVENT_LABELS = {
   lead_created: 'Lead created',
   email_sent: 'Email sent',
   email_opened: 'Email opened',
+  email_clicked: 'Email link clicked',
   brochure_downloaded: 'Brochure downloaded',
   whatsapp_clicked: 'WhatsApp clicked',
   status_changed: 'Status changed',

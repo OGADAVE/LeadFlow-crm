@@ -69,7 +69,12 @@ service cloud.firestore {
 
       match /sequenceEnrollments/{enrollmentId} {
         allow read: if belongsToCompany(companyId);
-        allow write: if false; // Worker only
+        // Created client-side when a lead is added (matching an active
+        // sequence) — same tradeoff as the timeline/notifications. Advancing
+        // the step or marking complete is Worker-only (the Worker's service
+        // account bypasses rules entirely, same as Cloud Functions did).
+        allow create: if belongsToCompany(companyId);
+        allow update, delete: if false;
       }
 
       match /whatsappClicks/{clickId} {
@@ -78,9 +83,13 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read: if belongsToCompany(companyId);
+        // Written by the client directly for now (lead created, status
+        // changed, WhatsApp clicked) — same integrity tradeoff as the
+        // timeline. Once the Email Automation Worker exists, follow-up-due
+        // and campaign-completed notifications will be written server-side.
+        allow read, create: if belongsToCompany(companyId);
         allow update: if belongsToCompany(companyId); // marking as read
-        allow create, delete: if false; // Worker only
+        allow delete: if false;
       }
     }
 
